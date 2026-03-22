@@ -1,16 +1,10 @@
 import { useState, useEffect } from "react";
 import * as S from "./App.styled";
-import { Settings } from "./types";
+import { DEFAULT_SETTINGS, Settings } from "./types";
 
 function App() {
   const [loading, setLoading] = useState<boolean>(true);
-  const [settings, setSettings] = useState<Settings>({
-    hideLikeButton: false,
-    autoMuteOnAd: false,
-    addScreenshot: false,
-    addRecord: false,
-    addCinemaMode: false,
-  });
+  const [settings, setSettings] = useState<Settings>({ ...DEFAULT_SETTINGS });
 
   useEffect(() => {
     chrome.storage.sync.get("tvingSettings", (result) => {
@@ -69,6 +63,13 @@ function App() {
         <S.ToggleButton
           isActive={settings.addCinemaMode}
           onClick={() => handleToggle("addCinemaMode")}
+        />
+      </S.SettingRow>
+      <S.SettingRow>
+        <S.Label>PIP 모드 버튼 활성화</S.Label>
+        <S.ToggleButton
+          isActive={settings.addPip}
+          onClick={() => handleToggle("addPip")}
         />
       </S.SettingRow>
     </S.Container>

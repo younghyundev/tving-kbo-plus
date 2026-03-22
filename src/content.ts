@@ -1,18 +1,13 @@
 import selectors from "./constant/selectors";
 import { addCinemaButton } from "./options/cinema-mode";
 import { hideLikeButton } from "./options/heart-button";
+import { addPipButton } from "./options/pip";
 import { addRecordButton } from "./options/record";
 import { addScreenshotButton } from "./options/screenshot";
-import { Settings } from "./types";
+import { DEFAULT_SETTINGS, Settings } from "./types";
 
 class Content {
-  private settings: Settings = {
-    hideLikeButton: false,
-    autoMuteOnAd: false,
-    addScreenshot: false,
-    addRecord: false,
-    addCinemaMode: false,
-  };
+  private settings: Settings = { ...DEFAULT_SETTINGS };
 
   constructor() {
     console.log("initialize");
@@ -54,6 +49,7 @@ class Content {
     addScreenshotButton(this.settings.addScreenshot);
     addRecordButton(this.settings.addRecord);
     addCinemaButton(this.settings.addCinemaMode);
+    addPipButton(this.settings.addPip);
   }
 }
 

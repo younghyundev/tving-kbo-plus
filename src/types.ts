@@ -4,4 +4,14 @@ export interface Settings {
   addScreenshot: boolean;
   addRecord: boolean;
   addCinemaMode: boolean;
+  addPip: boolean;
 }
+
+export const DEFAULT_SETTINGS: Settings = {
+  hideLikeButton: false,
+  autoMuteOnAd: false,
+  addScreenshot: true,
+  addRecord: false,
+  addCinemaMode: true,
+  addPip: true,
+};
