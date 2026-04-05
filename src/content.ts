@@ -1,6 +1,7 @@
 import selectors from "./constant/selectors";
 import { addCinemaButton } from "./options/cinema-mode";
 import { hideLikeButton } from "./options/heart-button";
+import { enableLiveSync } from "./options/live-sync";
 import { addPipButton } from "./options/pip";
 import { addRecordButton } from "./options/record";
 import { addScreenshotButton } from "./options/screenshot";
@@ -50,6 +51,7 @@ class Content {
     addRecordButton(this.settings.addRecord);
     addCinemaButton(this.settings.addCinemaMode);
     addPipButton(this.settings.addPip);
+    enableLiveSync(this.settings.enableLiveSync);
   }
 }
 

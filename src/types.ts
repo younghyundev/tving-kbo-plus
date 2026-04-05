@@ -5,6 +5,7 @@ export interface Settings {
   addRecord: boolean;
   addCinemaMode: boolean;
   addPip: boolean;
+  enableLiveSync: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -14,4 +15,5 @@ export const DEFAULT_SETTINGS: Settings = {
   addRecord: false,
   addCinemaMode: true,
   addPip: true,
+  enableLiveSync: true,
 };

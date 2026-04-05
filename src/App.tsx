@@ -72,6 +72,13 @@ function App() {
           onClick={() => handleToggle("addPip")}
         />
       </S.SettingRow>
+      <S.SettingRow>
+        <S.Label>채팅창에 지연시간 표기</S.Label>
+        <S.ToggleButton
+          isActive={settings.enableLiveSync}
+          onClick={() => handleToggle("enableLiveSync")}
+        />
+      </S.SettingRow>
     </S.Container>
   );
 }
