@@ -73,6 +73,13 @@ function App() {
         />
       </S.SettingRow>
       <S.SettingRow>
+        <S.Label>채팅 닉네임 숨기기</S.Label>
+        <S.ToggleButton
+          isActive={settings.hideNickname}
+          onClick={() => handleToggle("hideNickname")}
+        />
+      </S.SettingRow>
+      <S.SettingRow>
         <S.Label>채팅창에 지연시간 표기</S.Label>
         <S.ToggleButton
           isActive={settings.enableLiveSync}
