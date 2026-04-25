@@ -1,8 +1,5 @@
-# Tving KBO Plus
+<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/774a4123-9295-4287-84ed-edf79283d867" />
 
-![promo1](https://github.com/user-attachments/assets/ac61213a-53cb-450d-9ba1-8e90d0d4cf4e)
-
-<img width="329" height="462" alt="image" src="https://github.com/user-attachments/assets/027841a2-816d-4564-a59e-4796bc4dadc1" />
 
 Tving에서 편한 KBO 시청을 위한 익스텐션입니다.
 
@@ -16,6 +13,10 @@ Tving에서 편한 KBO 시청을 위한 익스텐션입니다.
 - 영화관(넓은화면) 모드
 - 채팅 닉네임 숨기기
 - 라이브영상 지연시간 표기 및 동기화 버튼 추가
+
+## 스크린샷
+<img width="329" height="462" alt="image" src="https://github.com/user-attachments/assets/027841a2-816d-4564-a59e-4796bc4dadc1" />
+
 
 ## 기술 스택
 
