@@ -1,4 +1,5 @@
 import selectors from "./constant/selectors";
+import { autoMuteOnAd } from "./options/auto-mute-ad";
 import { addCinemaButton } from "./options/cinema-mode";
 import { hideLikeButton } from "./options/heart-button";
 import { hideNickname } from "./options/hide-nickname";
@@ -18,13 +19,11 @@ class Content {
 
   private async initialize() {
     try {
-      const settings = await chrome.storage.sync.get("tvingSettings");
-      if (!settings || !settings.tvingSettings) {
-        console.error("error-no-settings");
-        return;
-      }
-
-      this.settings = settings.tvingSettings;
+      const result = await chrome.storage.sync.get("tvingSettings");
+      this.settings = {
+        ...DEFAULT_SETTINGS,
+        ...(result.tvingSettings as Partial<Settings> | undefined),
+      };
       this.waitForVideoElement();
     } catch (e) {
       console.log(e);
@@ -32,13 +31,18 @@ class Content {
   }
 
   private waitForVideoElement() {
-    const observer = new MutationObserver((_mutations, obs) => {
-      const videoElement = document.querySelector(selectors.PLAYER_CONTAINER);
-      if (videoElement) {
-        obs.disconnect();
-        this.applySettings();
-      }
-    });
+    let observer: MutationObserver | undefined;
+    const applyWhenReady = () => {
+      if (!document.querySelector(selectors.VIDEO)) return false;
+
+      observer?.disconnect();
+      this.applySettings();
+      return true;
+    };
+
+    if (applyWhenReady()) return;
+
+    observer = new MutationObserver(applyWhenReady);
 
     observer.observe(document.body, {
       childList: true,
@@ -48,6 +52,7 @@ class Content {
 
   private applySettings() {
     hideLikeButton(this.settings.hideLikeButton);
+    autoMuteOnAd(this.settings.autoMuteOnAd);
     addScreenshotButton(this.settings.addScreenshot);
     addRecordButton(this.settings.addRecord);
     addCinemaButton(this.settings.addCinemaMode);

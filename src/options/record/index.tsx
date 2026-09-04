@@ -4,6 +4,7 @@ import { injectAfter, waitForElement } from "../../utils/dom";
 
 export async function addRecordButton(enabled: boolean) {
   if (!enabled) return;
+  if (document.querySelector('button[aria-label="녹화"]')) return;
 
   const space = await waitForElement(selectors.SPACE);
 

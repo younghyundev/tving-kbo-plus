@@ -1,7 +1,7 @@
 import { getVideoElement } from "./get";
 import { waitForElement } from "./dom";
+import selectors from "../constant/selectors";
 
-const CHAT_TEXTAREA_SELECTOR = "#live-chat-textarea";
 const BUTTON_ID = "kbo-plus-live-sync-btn";
 const DELAY_UPDATE_INTERVAL = 1000;
 
@@ -42,7 +42,7 @@ function startDelayIndicator() {
 
   delayIntervalId = setInterval(async () => {
     const textarea = document.querySelector<HTMLTextAreaElement>(
-      CHAT_TEXTAREA_SELECTOR,
+      selectors.CHAT_TEXTAREA,
     );
     if (!textarea) return;
 
@@ -96,7 +96,7 @@ function createSyncButton(): HTMLButtonElement {
 }
 
 export async function initLiveSync() {
-  const textarea = await waitForElement(CHAT_TEXTAREA_SELECTOR, 10000);
+  const textarea = await waitForElement(selectors.CHAT_TEXTAREA, 10000);
   if (!textarea) return;
 
   const container = textarea.closest("div.relative") as HTMLElement;

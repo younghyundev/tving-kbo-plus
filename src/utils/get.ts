@@ -1,9 +1,8 @@
 import { waitForElement } from "./dom";
+import selectors from "../constant/selectors";
 
 export async function getVideoElement(): Promise<HTMLVideoElement | null> {
-  const video = (await waitForElement(
-    '[id^="tving-player"]'
-  )) as HTMLVideoElement;
+  const video = (await waitForElement(selectors.VIDEO)) as HTMLVideoElement;
   return video ? video : null;
 }
 

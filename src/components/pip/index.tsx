@@ -1,8 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { togglePip } from "../../utils/pip";
+import { getVideoElement } from "../../utils/get";
 
 export const PipButton = () => {
   const [isPip, setIsPip] = useState(false);
+
+  useEffect(() => {
+    let video: HTMLVideoElement | null = null;
+    let disposed = false;
+    const updatePipState = () => {
+      setIsPip(document.pictureInPictureElement !== null);
+    };
+
+    getVideoElement().then((element) => {
+      if (!element || disposed) return;
+
+      video = element;
+      video.addEventListener("enterpictureinpicture", updatePipState);
+      video.addEventListener("leavepictureinpicture", updatePipState);
+      updatePipState();
+    });
+
+    return () => {
+      disposed = true;
+      video?.removeEventListener("enterpictureinpicture", updatePipState);
+      video?.removeEventListener("leavepictureinpicture", updatePipState);
+    };
+  }, []);
 
   const handleOnClick = async () => {
     const result = await togglePip();
