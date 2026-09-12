@@ -10,6 +10,12 @@
   "content_scripts": [
     {
       "matches": ["*://*.tving.com/*"],
+      "js": ["src/windowed-multiview.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.tving.com/*"],
       "js": ["src/content.ts"]
     }
   ],
