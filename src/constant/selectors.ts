@@ -9,6 +9,8 @@ export default {
   PLAYER_CONTAINER: ".sports-player, .player-container",
   SPACE: ".con__space-center", // 툴바 가운데 기준점
   PLAYER_WRAP: ".sports-player .cjp-root, .player-wrap",
+  PLAYER_COMPANION_AD:
+    "#sports-game-scroll-root .sports-contents-main > div.w-full > div > section:first-child",
   FULLSCREEN_BUTTON: ".con__fullscreen",
   CHAT_TEXTAREA:
     'textarea[aria-label="메시지 입력"], #live-chat-textarea',
@@ -17,4 +19,9 @@ export default {
     ":scope > span.align-middle.text-gray-600, :scope > span.text-\\[\\#808080\\]",
   CHAT_TEAM_BADGE:
     'img[src*="/badge/kbo/"], span.ml-\\[0\\.333rem\\] img',
+  SPORTS_GAME_ROOT: "#sports-game-scroll-root",
+  SPORTS_GNB_WRAPPER:
+    "body > .hidden-in-fullscreen-mode:has(> #TVING-SPORTS-GNB)",
+  SPORTS_TYPE_HEADER_WRAPPER:
+    "#sports-game-scroll-root > main > .hidden-in-fullscreen-mode.contents",
 } as const;

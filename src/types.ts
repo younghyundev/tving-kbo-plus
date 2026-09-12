@@ -7,6 +7,7 @@ export interface Settings {
   addPip: boolean;
   enableLiveSync: boolean;
   hideNickname: boolean;
+  hideTopNavigation: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -18,4 +19,5 @@ export const DEFAULT_SETTINGS: Settings = {
   addPip: true,
   enableLiveSync: true,
   hideNickname: false,
+  hideTopNavigation: false,
 };
