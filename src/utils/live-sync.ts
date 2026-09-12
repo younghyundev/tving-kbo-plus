@@ -1,112 +1,202 @@
-import { getVideoElement } from "./get";
-import { waitForElement } from "./dom";
 import selectors from "../constant/selectors";
+import { setStyleElement, waitForElement } from "./dom";
 
 const BUTTON_ID = "kbo-plus-live-sync-btn";
+const STYLE_ID = "kbo-plus-live-sync-style";
 const DELAY_UPDATE_INTERVAL = 1000;
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const DELAY_PLACEHOLDER_PREFIX = "지연시간:";
 
-let delayIntervalId: ReturnType<typeof setInterval> | null = null;
+let delayIntervalId: number | null = null;
+let syncButton: HTMLButtonElement | null = null;
+let activeTextarea: HTMLTextAreaElement | null = null;
+let activeVideo: HTMLVideoElement | null = null;
+let activeContainer: HTMLElement | null = null;
+let originalPlaceholder = "";
+let originalContainerPosition = "";
+let liveSyncGeneration = 0;
 
-async function getDelay(): Promise<number | null> {
-  const video = await getVideoElement();
-  if (!video) return null;
-
-  const { duration, currentTime } = video;
-  if (!isFinite(duration)) return null;
-
-  return duration - currentTime;
+function getCurrentVideo(): HTMLVideoElement | null {
+  if (activeVideo?.isConnected) return activeVideo;
+  activeVideo = document.querySelector<HTMLVideoElement>(selectors.VIDEO);
+  return activeVideo;
 }
 
-function updatePlaceholder(textarea: HTMLTextAreaElement, delay: number) {
-  textarea.placeholder = `지연시간: ${delay.toFixed(1)}초`;
+function getDelay(video: HTMLVideoElement): number | null {
+  if (!Number.isFinite(video.duration)) return null;
+  return video.duration - video.currentTime;
 }
 
-async function seekToLive() {
-  const video = await getVideoElement();
-  if (!video || !isFinite(video.duration)) return;
-
-  video.currentTime = video.duration - 0.5;
-  console.log("[TVING KBO PLUS] 라이브 최신 지점으로 이동");
+function seekToLive(video: HTMLVideoElement): void {
+  if (!Number.isFinite(video.duration)) return;
+  video.currentTime = Math.max(0, video.duration - 0.5);
 }
 
-async function handleClick() {
-  const delay = await getDelay();
+function handleClick(event: MouseEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
 
-  if (delay !== null && delay >= 5) {
-    await seekToLive();
+  const video = getCurrentVideo();
+  if (!video) return;
+
+  const delay = getDelay(video);
+  if (delay !== null && delay >= 5) seekToLive(video);
+}
+
+function updateDelayIndicator(): void {
+  if (!syncButton?.isConnected || !activeTextarea?.isConnected) {
+    disposeLiveSync();
+    return;
+  }
+
+  const video = getCurrentVideo();
+  if (!video) return;
+
+  const delay = getDelay(video);
+  if (delay === null) return;
+
+  const nextPlaceholder = `${DELAY_PLACEHOLDER_PREFIX} ${delay.toFixed(1)}초`;
+  if (activeTextarea.placeholder !== nextPlaceholder) {
+    activeTextarea.placeholder = nextPlaceholder;
   }
 }
 
-function startDelayIndicator() {
+function startDelayIndicator(): void {
   if (delayIntervalId !== null) return;
 
-  delayIntervalId = setInterval(async () => {
-    const textarea = document.querySelector<HTMLTextAreaElement>(
-      selectors.CHAT_TEXTAREA,
-    );
-    if (!textarea) return;
+  updateDelayIndicator();
+  delayIntervalId = window.setInterval(
+    updateDelayIndicator,
+    DELAY_UPDATE_INTERVAL,
+  );
+}
 
-    const delay = await getDelay();
-    if (delay !== null) {
-      updatePlaceholder(textarea, delay);
-    }
-  }, DELAY_UPDATE_INTERVAL);
+function createFastForwardIcon(): SVGSVGElement {
+  const icon = document.createElementNS(SVG_NAMESPACE, "svg");
+  icon.setAttribute("aria-hidden", "true");
+  icon.setAttribute("width", "14");
+  icon.setAttribute("height", "14");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("fill", "none");
+  icon.setAttribute("stroke", "currentColor");
+  icon.setAttribute("stroke-width", "2.5");
+  icon.setAttribute("stroke-linecap", "round");
+  icon.setAttribute("stroke-linejoin", "round");
+
+  for (const points of ["13 19 22 12 13 5 13 19", "2 19 11 12 2 5 2 19"]) {
+    const polygon = document.createElementNS(SVG_NAMESPACE, "polygon");
+    polygon.setAttribute("points", points);
+    icon.appendChild(polygon);
+  }
+
+  return icon;
 }
 
 function createSyncButton(): HTMLButtonElement {
-  const btn = document.createElement("button");
-  btn.id = BUTTON_ID;
-  btn.type = "button";
-  btn.title = "라이브 동기화 (빨리감기)";
-  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>`;
-
-  btn.style.cssText = `
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 2.333rem;
-    width: 2.333rem;
-    background: #808080;
-    border: none;
-    border-radius: 50%;
-    right: 3.2rem;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: pointer;
-    color: #000;
-    transition: background-color 200ms;
-    z-index: 10;
-  `;
-
-  btn.addEventListener("mouseenter", () => {
-    btn.style.background = "#6B6B6B";
-  });
-  btn.addEventListener("mouseleave", () => {
-    btn.style.background = "#808080";
-  });
-
-  btn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleClick();
-  });
-
-  return btn;
+  const button = document.createElement("button");
+  button.id = BUTTON_ID;
+  button.type = "button";
+  button.setAttribute("aria-label", "라이브 동기화");
+  button.title = "라이브 동기화";
+  button.appendChild(createFastForwardIcon());
+  button.addEventListener("click", handleClick);
+  return button;
 }
 
-export async function initLiveSync() {
-  const textarea = await waitForElement(selectors.CHAT_TEXTAREA, 10000);
-  if (!textarea) return;
+function ensureSyncButtonStyle(): void {
+  setStyleElement(
+    STYLE_ID,
+    `
+      #${BUTTON_ID} {
+        position: absolute;
+        top: 50%;
+        right: 3.2rem;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.333rem;
+        height: 2.333rem;
+        padding: 0;
+        color: #000000;
+        background: #808080;
+        border: 0;
+        border-radius: 50%;
+        cursor: pointer;
+        touch-action: manipulation;
+        transform: translateY(-50%);
+        transition: background-color 200ms ease;
+      }
 
-  const container = textarea.closest("div.relative") as HTMLElement;
+      #${BUTTON_ID}:hover {
+        background: #6b6b6b;
+      }
+
+      #${BUTTON_ID}:focus-visible {
+        outline: 2px solid #ffffff;
+        outline-offset: 2px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #${BUTTON_ID} {
+          transition-duration: 0.01ms;
+        }
+      }
+    `,
+  );
+}
+
+export function disposeLiveSync(): void {
+  liveSyncGeneration += 1;
+  if (delayIntervalId !== null) {
+    window.clearInterval(delayIntervalId);
+    delayIntervalId = null;
+  }
+  syncButton?.removeEventListener("click", handleClick);
+  syncButton?.remove();
+  syncButton = null;
+
+  if (activeContainer?.style.position === "relative") {
+    activeContainer.style.position = originalContainerPosition;
+  }
+  activeContainer = null;
+  originalContainerPosition = "";
+
+  if (
+    activeTextarea?.isConnected &&
+    activeTextarea.placeholder.startsWith(DELAY_PLACEHOLDER_PREFIX)
+  ) {
+    activeTextarea.placeholder = originalPlaceholder;
+  }
+  activeTextarea = null;
+  activeVideo = null;
+  originalPlaceholder = "";
+  setStyleElement(STYLE_ID, "", false);
+}
+
+export async function initLiveSync(): Promise<void> {
+  if (syncButton?.isConnected) return;
+  disposeLiveSync();
+  const currentGeneration = liveSyncGeneration;
+
+  const textarea = await waitForElement<HTMLTextAreaElement>(
+    selectors.CHAT_TEXTAREA,
+    10000,
+  );
+  if (!textarea || currentGeneration !== liveSyncGeneration) return;
+
+  const container = textarea.closest<HTMLElement>("div.relative");
   if (!container) return;
 
-  if (document.getElementById(BUTTON_ID)) return;
-
+  document.getElementById(BUTTON_ID)?.remove();
+  ensureSyncButtonStyle();
+  activeTextarea = textarea;
+  originalPlaceholder = textarea.placeholder;
+  activeVideo = document.querySelector<HTMLVideoElement>(selectors.VIDEO);
+  activeContainer = container;
+  originalContainerPosition = container.style.position;
+  syncButton = createSyncButton();
   container.style.position = "relative";
-  container.appendChild(createSyncButton());
-
-  // 지연시간 자동 갱신 시작
+  container.appendChild(syncButton);
   startDelayIndicator();
 }

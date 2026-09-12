@@ -15,7 +15,7 @@
         "*://*.tving.com/*"
       ],
       "js": [
-        "src/windowed-multiview.js"
+        "src/windowed-multiview.ts"
       ],
       "run_at": "document_start",
       "world": "MAIN"

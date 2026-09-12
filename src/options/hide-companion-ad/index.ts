@@ -1,18 +1,15 @@
 import selectors from "../../constant/selectors";
+import { setStyleElement } from "../../utils/dom";
 
 const STYLE_ID = "kbo-plus-hide-companion-ad-style";
 
-export function hideCompanionAd() {
-  if (document.getElementById(STYLE_ID)) return;
-
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = `
-    ${selectors.PLAYER_COMPANION_AD} {
-      display: none !important;
-    }
-  `;
-  document.head.appendChild(style);
-
-  return () => style.remove();
+export function hideCompanionAd(): void {
+  setStyleElement(
+    STYLE_ID,
+    `
+      ${selectors.PLAYER_COMPANION_AD} {
+        display: none !important;
+      }
+    `,
+  );
 }

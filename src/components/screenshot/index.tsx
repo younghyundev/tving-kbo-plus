@@ -1,9 +1,10 @@
+import { useCallback } from "react";
 import { screenshot } from "../../utils/screenshot";
 
 export const ScreenshotButton = () => {
-  const handleOnClick = async () => {
-    await screenshot();
-  };
+  const handleOnClick = useCallback(() => {
+    void screenshot();
+  }, []);
 
   return (
     <button
@@ -11,8 +12,14 @@ export const ScreenshotButton = () => {
       type="button"
       aria-label="스크린샷"
       onClick={handleOnClick}
+      title="스크린샷"
     >
-      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 28 28"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <path
           fillRule="evenodd"
           clipRule="evenodd"

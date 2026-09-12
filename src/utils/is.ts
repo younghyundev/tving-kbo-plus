@@ -1,3 +1,3 @@
-export const isFullScreen = () => {
-  return document.fullscreenElement !== null;
+export const isFullScreen = (): boolean => {
+  return Boolean(document.fullscreenElement);
 };

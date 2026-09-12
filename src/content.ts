@@ -1,69 +1,79 @@
 import selectors from "./constant/selectors";
-import { autoMuteOnAd } from "./options/auto-mute-ad";
-import { addCinemaButton } from "./options/cinema-mode";
-import { hideLikeButton } from "./options/heart-button";
-import { hideCompanionAd } from "./options/hide-companion-ad";
-import { hideNickname } from "./options/hide-nickname";
-import { hideTopNavigation } from "./options/hide-top-navigation";
-import { enableLiveSync } from "./options/live-sync";
-import { addPipButton } from "./options/pip";
-import { addRecordButton } from "./options/record";
-import { addScreenshotButton } from "./options/screenshot";
-import { DEFAULT_SETTINGS, Settings } from "./types";
 
-class Content {
-  private settings: Settings = { ...DEFAULT_SETTINGS };
+type ContentFeaturesModule = typeof import("./content-features");
 
-  constructor() {
-    console.log("initialize");
-    this.initialize();
-  }
+let featureModule: ContentFeaturesModule | null = null;
+let activeRoot: HTMLElement | null = null;
+let initializationId = 0;
 
-  private async initialize() {
-    try {
-      const result = await chrome.storage.sync.get("tvingSettings");
-      this.settings = {
-        ...DEFAULT_SETTINGS,
-        ...(result.tvingSettings as Partial<Settings> | undefined),
-      };
-      this.waitForVideoElement();
-    } catch (e) {
-      console.log(e);
-    }
-  }
-
-  private waitForVideoElement() {
-    let observer: MutationObserver | undefined;
-    const applyWhenReady = () => {
-      if (!document.querySelector(selectors.VIDEO)) return false;
-
-      observer?.disconnect();
-      this.applySettings();
-      return true;
-    };
-
-    if (applyWhenReady()) return;
-
-    observer = new MutationObserver(applyWhenReady);
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-  }
-
-  private applySettings() {
-    hideCompanionAd();
-    hideLikeButton(this.settings.hideLikeButton);
-    autoMuteOnAd(this.settings.autoMuteOnAd);
-    addScreenshotButton(this.settings.addScreenshot);
-    addRecordButton(this.settings.addRecord);
-    addCinemaButton(this.settings.addCinemaMode);
-    addPipButton(this.settings.addPip);
-    enableLiveSync(this.settings.enableLiveSync);
-    hideNickname(this.settings.hideNickname);
-    hideTopNavigation(this.settings.hideTopNavigation);
-  }
+function addedNodeContainsSportsRoot(node: Node): boolean {
+  if (!(node instanceof Element)) return false;
+  return (
+    node.matches(selectors.SPORTS_GAME_ROOT) ||
+    Boolean(node.querySelector(selectors.SPORTS_GAME_ROOT))
+  );
 }
 
-new Content();
+function removedNodeContainsActiveRoot(node: Node): boolean {
+  return (
+    activeRoot !== null &&
+    node instanceof Element &&
+    (node === activeRoot || node.contains(activeRoot))
+  );
+}
+
+async function initializeSportsRoot(root: HTMLElement): Promise<void> {
+  const currentInitializationId = ++initializationId;
+  const module = featureModule ?? (await import("./content-features"));
+  featureModule = module;
+
+  if (currentInitializationId !== initializationId || !root.isConnected) {
+    return;
+  }
+
+  await module.initializeContentFeatures(root);
+}
+
+function syncSportsPage(): void {
+  const root = document.querySelector<HTMLElement>(selectors.SPORTS_GAME_ROOT);
+  if (!root) {
+    if (activeRoot) featureModule?.disposeContentFeatures();
+    activeRoot = null;
+    initializationId += 1;
+    return;
+  }
+  if (root === activeRoot) return;
+
+  if (activeRoot) featureModule?.disposeContentFeatures();
+  activeRoot = root;
+  void initializeSportsRoot(root).catch((error: unknown) => {
+    if (activeRoot === root) activeRoot = null;
+    console.error("[TVING KBO PLUS] 초기화에 실패했습니다.", error);
+  });
+}
+
+const pageObserver = new MutationObserver((mutations) => {
+  const sportsRootChanged = mutations.some((mutation) => {
+    if ([...mutation.removedNodes].some(removedNodeContainsActiveRoot)) {
+      return true;
+    }
+    if (activeRoot) return false;
+    return [...mutation.addedNodes].some(addedNodeContainsSportsRoot);
+  });
+  if (sportsRootChanged) syncSportsPage();
+});
+
+function startPageObservation(): void {
+  pageObserver.observe(document, { childList: true, subtree: true });
+  syncSportsPage();
+}
+
+window.addEventListener("pagehide", () => {
+  pageObserver.disconnect();
+  featureModule?.disposeContentFeatures();
+  activeRoot = null;
+  initializationId += 1;
+});
+window.addEventListener("pageshow", startPageObservation);
+
+startPageObservation();

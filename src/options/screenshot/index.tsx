@@ -1,16 +1,14 @@
 import { ScreenshotButton } from "../../components/screenshot";
-import { waitForElement, injectAfter } from "../../utils/dom";
 import selectors from "../../constant/selectors";
-export async function addScreenshotButton(enabled: boolean) {
-  if (!enabled) return;
-  if (document.querySelector('button[aria-label="스크린샷"]')) return;
+import { mountControl } from "../mount-control";
 
-  const space = await waitForElement(selectors.SPACE);
-
-  if (!space) {
-    console.warn("error, no space element");
-    return;
-  }
-
-  injectAfter(<ScreenshotButton />, space);
+export function addScreenshotButton(enabled: boolean) {
+  return mountControl({
+    buttonSelector: 'button[aria-label="스크린샷"]',
+    enabled,
+    name: "스크린샷",
+    node: <ScreenshotButton />,
+    position: "after",
+    targetSelector: selectors.SPACE,
+  });
 }

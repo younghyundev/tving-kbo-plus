@@ -2,13 +2,12 @@ import { waitForElement } from "./dom";
 import selectors from "../constant/selectors";
 
 export async function getVideoElement(): Promise<HTMLVideoElement | null> {
-  const video = (await waitForElement(selectors.VIDEO)) as HTMLVideoElement;
-  return video ? video : null;
+  return waitForElement<HTMLVideoElement>(selectors.VIDEO);
 }
 
 export async function getTitle(): Promise<string | null> {
-  const title = await waitForElement("head > title");
-  return title ? title.innerHTML : null;
+  const title = await waitForElement<HTMLTitleElement>("head > title");
+  return title?.textContent || null;
 }
 
 export function getCurrentTime(): string {
