@@ -1,22 +1,32 @@
 {
   "manifest_version": 3,
   "name": "TVING KBO PLUS",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "TVING에서 KBO시청시 편리한 도구를 제공하는 확장프로그램입니다.",
   "action": {
     "default_popup": "index.html"
   },
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "content_scripts": [
     {
-      "matches": ["*://*.tving.com/*"],
-      "js": ["src/windowed-multiview.js"],
+      "matches": [
+        "*://*.tving.com/*"
+      ],
+      "js": [
+        "src/windowed-multiview.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["*://*.tving.com/*"],
-      "js": ["src/content.ts"]
+      "matches": [
+        "*://*.tving.com/*"
+      ],
+      "js": [
+        "src/content.ts"
+      ]
     }
   ],
   "icons": {
