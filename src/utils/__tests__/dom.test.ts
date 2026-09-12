@@ -23,4 +23,13 @@ describe("waitForElement", () => {
 
     await expect(result).resolves.toBe(button);
   });
+
+  it("동일한 요소 대기 요청을 공유한다", async () => {
+    const firstRequest = waitForElement("#shared-target", 100);
+    const secondRequest = waitForElement("#shared-target", 100);
+
+    expect(firstRequest).toBe(secondRequest);
+    document.body.insertAdjacentHTML("beforeend", '<div id="shared-target"></div>');
+    await expect(firstRequest).resolves.not.toBeNull();
+  });
 });

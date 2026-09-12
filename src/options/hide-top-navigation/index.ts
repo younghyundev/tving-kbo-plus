@@ -4,9 +4,17 @@ const STYLE_ID = "kbo-plus-hide-top-navigation-style";
 const HIDDEN_ATTRIBUTE = "data-kbo-plus-top-navigation-hidden";
 const SCROLL_THRESHOLD = 24;
 const TRANSITION_DURATION = 250;
+let disposeNavigation: (() => void) | null = null;
 
-export function hideTopNavigation(enabled: boolean) {
-  if (!enabled || document.getElementById(STYLE_ID)) return;
+export function hideTopNavigation(enabled: boolean): void {
+  if (!enabled) {
+    disposeNavigation?.();
+    disposeNavigation = null;
+    return;
+  }
+  if (disposeNavigation) return;
+
+  document.getElementById(STYLE_ID)?.remove();
 
   const style = document.createElement("style");
   style.id = STYLE_ID;
@@ -63,7 +71,7 @@ export function hideTopNavigation(enabled: boolean) {
   updateNavigation();
   window.addEventListener("scroll", updateNavigation, { passive: true });
 
-  return () => {
+  disposeNavigation = () => {
     window.removeEventListener("scroll", updateNavigation);
     document.documentElement.removeAttribute(HIDDEN_ATTRIBUTE);
     style.remove();

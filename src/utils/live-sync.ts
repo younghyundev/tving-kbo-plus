@@ -5,11 +5,21 @@ const BUTTON_ID = "kbo-plus-live-sync-btn";
 const STYLE_ID = "kbo-plus-live-sync-style";
 const DELAY_UPDATE_INTERVAL = 1000;
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const DELAY_PLACEHOLDER_PREFIX = "지연시간:";
 
 let delayIntervalId: number | null = null;
+let syncButton: HTMLButtonElement | null = null;
+let activeTextarea: HTMLTextAreaElement | null = null;
+let activeVideo: HTMLVideoElement | null = null;
+let activeContainer: HTMLElement | null = null;
+let originalPlaceholder = "";
+let originalContainerPosition = "";
+let liveSyncGeneration = 0;
 
 function getCurrentVideo(): HTMLVideoElement | null {
-  return document.querySelector<HTMLVideoElement>(selectors.VIDEO);
+  if (activeVideo?.isConnected) return activeVideo;
+  activeVideo = document.querySelector<HTMLVideoElement>(selectors.VIDEO);
+  return activeVideo;
 }
 
 function getDelay(video: HTMLVideoElement): number | null {
@@ -19,7 +29,6 @@ function getDelay(video: HTMLVideoElement): number | null {
 
 function seekToLive(video: HTMLVideoElement): void {
   if (!Number.isFinite(video.duration)) return;
-
   video.currentTime = Math.max(0, video.duration - 0.5);
 }
 
@@ -35,14 +44,21 @@ function handleClick(event: MouseEvent): void {
 }
 
 function updateDelayIndicator(): void {
-  const textarea = document.querySelector<HTMLTextAreaElement>(
-    selectors.CHAT_TEXTAREA,
-  );
+  if (!syncButton?.isConnected || !activeTextarea?.isConnected) {
+    disposeLiveSync();
+    return;
+  }
+
   const video = getCurrentVideo();
-  if (!textarea || !video) return;
+  if (!video) return;
 
   const delay = getDelay(video);
-  if (delay !== null) textarea.placeholder = `지연시간: ${delay.toFixed(1)}초`;
+  if (delay === null) return;
+
+  const nextPlaceholder = `${DELAY_PLACEHOLDER_PREFIX} ${delay.toFixed(1)}초`;
+  if (activeTextarea.placeholder !== nextPlaceholder) {
+    activeTextarea.placeholder = nextPlaceholder;
+  }
 }
 
 function startDelayIndicator(): void {
@@ -130,18 +146,57 @@ function ensureSyncButtonStyle(): void {
   );
 }
 
+export function disposeLiveSync(): void {
+  liveSyncGeneration += 1;
+  if (delayIntervalId !== null) {
+    window.clearInterval(delayIntervalId);
+    delayIntervalId = null;
+  }
+  syncButton?.removeEventListener("click", handleClick);
+  syncButton?.remove();
+  syncButton = null;
+
+  if (activeContainer?.style.position === "relative") {
+    activeContainer.style.position = originalContainerPosition;
+  }
+  activeContainer = null;
+  originalContainerPosition = "";
+
+  if (
+    activeTextarea?.isConnected &&
+    activeTextarea.placeholder.startsWith(DELAY_PLACEHOLDER_PREFIX)
+  ) {
+    activeTextarea.placeholder = originalPlaceholder;
+  }
+  activeTextarea = null;
+  activeVideo = null;
+  originalPlaceholder = "";
+  setStyleElement(STYLE_ID, "", false);
+}
+
 export async function initLiveSync(): Promise<void> {
+  if (syncButton?.isConnected) return;
+  disposeLiveSync();
+  const currentGeneration = liveSyncGeneration;
+
   const textarea = await waitForElement<HTMLTextAreaElement>(
     selectors.CHAT_TEXTAREA,
     10000,
   );
-  if (!textarea || document.getElementById(BUTTON_ID)) return;
+  if (!textarea || currentGeneration !== liveSyncGeneration) return;
 
   const container = textarea.closest<HTMLElement>("div.relative");
   if (!container) return;
 
+  document.getElementById(BUTTON_ID)?.remove();
   ensureSyncButtonStyle();
+  activeTextarea = textarea;
+  originalPlaceholder = textarea.placeholder;
+  activeVideo = document.querySelector<HTMLVideoElement>(selectors.VIDEO);
+  activeContainer = container;
+  originalContainerPosition = container.style.position;
+  syncButton = createSyncButton();
   container.style.position = "relative";
-  container.appendChild(createSyncButton());
+  container.appendChild(syncButton);
   startDelayIndicator();
 }

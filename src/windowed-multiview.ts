@@ -15,8 +15,11 @@
   const TRIGGER_ATTRIBUTE = "data-kbo-plus-windowed-multiview-trigger";
   const ACTIVE_ATTRIBUTE = "data-kbo-plus-windowed-multiview-active";
   const WAIT_TIMEOUT = 3000;
-  const SYNC_INTERVAL = 250;
   const runtimeWindow = window as RuntimeWindow;
+  const reducedMotionQuery =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)")
+      : null;
 
   if (runtimeWindow[INSTALLED_KEY]) return;
   runtimeWindow[INSTALLED_KEY] = true;
@@ -32,8 +35,12 @@
   let multiviewWasVisible = false;
   let normalPlayerClassName: string | null = null;
   let syncQueued = false;
+  let syncAnimationFrame: number | null = null;
+  let observedButton: HTMLButtonElement | null = null;
+  let buttonObserver: MutationObserver | null = null;
   let observedMultiview: HTMLElement | null = null;
   let multiviewObserver: MutationObserver | null = null;
+  let multiviewResizeObserver: ResizeObserver | null = null;
 
   if (typeof originalRequestFullscreen === "function") {
     Element.prototype.requestFullscreen = function (options) {
@@ -132,24 +139,73 @@
   }
 
   function prefersReducedMotion(): boolean {
+    return reducedMotionQuery?.matches ?? false;
+  }
+
+  function getInlineOpacity(cssText: string | null): string {
     return (
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      cssText
+        ?.match(/(?:^|;)\s*opacity\s*:\s*([^;]+)/i)?.[1]
+        ?.trim() ?? ""
     );
+  }
+
+  function handleMultiviewTransition(event: TransitionEvent): void {
+    if (event.propertyName === "opacity") queueSync();
+  }
+
+  function disconnectMultiviewObservers(): void {
+    multiviewObserver?.disconnect();
+    multiviewResizeObserver?.disconnect();
+    observedMultiview?.removeEventListener(
+      "transitionend",
+      handleMultiviewTransition,
+      true,
+    );
+    multiviewObserver = null;
+    multiviewResizeObserver = null;
+    observedMultiview = null;
   }
 
   function observeMultiview(multiview: HTMLElement): void {
     if (observedMultiview === multiview) return;
 
-    multiviewObserver?.disconnect();
+    disconnectMultiviewObservers();
     observedMultiview = multiview;
-    multiviewObserver = new MutationObserver(queueSync);
+    multiview.addEventListener(
+      "transitionend",
+      handleMultiviewTransition,
+      true,
+    );
+    multiviewObserver = new MutationObserver((mutations) => {
+      const layoutChanged = mutations.some((mutation) => {
+        if (mutation.type === "childList") return true;
+        if (mutation.attributeName === "class") return true;
+        if (
+          mutation.attributeName === "style" &&
+          mutation.target instanceof HTMLElement
+        ) {
+          return (
+            getInlineOpacity(mutation.oldValue) !==
+            mutation.target.style.opacity
+          );
+        }
+        return false;
+      });
+      if (layoutChanged) queueSync();
+    });
     multiviewObserver.observe(multiview, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["class"],
+      attributeFilter: ["class", "style"],
+      attributeOldValue: true,
     });
+
+    if (typeof ResizeObserver === "function") {
+      multiviewResizeObserver = new ResizeObserver(queueSync);
+      multiviewResizeObserver.observe(multiview);
+    }
   }
 
   function applyResponsiveMultiviewLayout(multiview: HTMLElement): void {
@@ -329,11 +385,27 @@
 
   function syncTrigger(): void {
     const button = getButton(selectors.multiviewButton);
-    if (!button) return;
+    if (!button) {
+      if (observedButton && !observedButton.isConnected) {
+        buttonObserver?.disconnect();
+        buttonObserver = null;
+        observedButton = null;
+      }
+      return;
+    }
 
     if (!connectedButtons.has(button)) {
       button.addEventListener("click", handleTriggerClick, true);
       connectedButtons.add(button);
+    }
+    if (observedButton !== button) {
+      buttonObserver?.disconnect();
+      observedButton = button;
+      buttonObserver = new MutationObserver(queueSync);
+      buttonObserver.observe(button, {
+        attributes: true,
+        attributeFilter: ["class", "disabled"],
+      });
     }
 
     if (!isNormalWindowedLayout() || starting) {
@@ -387,9 +459,7 @@
     siteFullscreenActive = false;
     multiviewWasVisible = false;
     normalPlayerClassName = null;
-    multiviewObserver?.disconnect();
-    multiviewObserver = null;
-    observedMultiview = null;
+    disconnectMultiviewObservers();
     setRootAttribute(ACTIVE_ATTRIBUTE, false);
     syncTrigger();
   }
@@ -471,12 +541,63 @@
     if (syncQueued) return;
     syncQueued = true;
 
-    queueMicrotask(() => {
+    syncAnimationFrame = window.requestAnimationFrame(() => {
       syncQueued = false;
+      syncAnimationFrame = null;
       syncState();
     });
   }
 
-  window.setInterval(syncState, SYNC_INTERVAL);
-  syncState();
+  function nodeContainsElement(node: Node, element: Element): boolean {
+    if (!(node instanceof Element)) return false;
+    return node === element || node.contains(element);
+  }
+
+  function addedNodeContainsSelector(node: Node, selector: string): boolean {
+    if (!(node instanceof Element)) return false;
+    return node.matches(selector) || Boolean(node.querySelector(selector));
+  }
+
+  const pageObserver = new MutationObserver((mutations) => {
+    const relevantUiChanged = mutations.some((mutation) => {
+      const removedRelevantUi = [...mutation.removedNodes].some(
+        (node) =>
+          (observedButton !== null &&
+            nodeContainsElement(node, observedButton)) ||
+          (observedMultiview !== null &&
+            nodeContainsElement(node, observedMultiview)),
+      );
+      if (removedRelevantUi) return true;
+
+      return [...mutation.addedNodes].some(
+        (node) =>
+          (!observedButton &&
+            addedNodeContainsSelector(node, selectors.multiviewButton)) ||
+          (fakeFullscreenActive &&
+            !observedMultiview &&
+            addedNodeContainsSelector(node, selectors.multiview)),
+      );
+    });
+    if (relevantUiChanged) queueSync();
+  });
+
+  function startPageObservation(): void {
+    pageObserver.observe(document, { childList: true, subtree: true });
+    syncState();
+  }
+
+  window.addEventListener("pagehide", () => {
+    pageObserver.disconnect();
+    buttonObserver?.disconnect();
+    buttonObserver = null;
+    observedButton = null;
+    disconnectMultiviewObservers();
+    if (syncAnimationFrame !== null) {
+      window.cancelAnimationFrame(syncAnimationFrame);
+      syncAnimationFrame = null;
+    }
+    syncQueued = false;
+  });
+  window.addEventListener("pageshow", startPageObservation);
+  startPageObservation();
 })();

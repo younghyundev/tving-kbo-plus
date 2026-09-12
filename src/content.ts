@@ -1,56 +1,79 @@
 import selectors from "./constant/selectors";
-import { autoMuteOnAd } from "./options/auto-mute-ad";
-import { addCinemaButton } from "./options/cinema-mode";
-import { hideLikeButton } from "./options/heart-button";
-import { hideCompanionAd } from "./options/hide-companion-ad";
-import { hideNickname } from "./options/hide-nickname";
-import { hideTopNavigation } from "./options/hide-top-navigation";
-import { enableLiveSync } from "./options/live-sync";
-import { addPipButton } from "./options/pip";
-import { addRecordButton } from "./options/record";
-import { addScreenshotButton } from "./options/screenshot";
-import { loadSettings } from "./settings";
-import type { SettingKey, Settings } from "./types";
-import { waitForElement } from "./utils/dom";
 
-interface SettingInitializer {
-  key: SettingKey;
-  initialize: (enabled: boolean) => unknown;
+type ContentFeaturesModule = typeof import("./content-features");
+
+let featureModule: ContentFeaturesModule | null = null;
+let activeRoot: HTMLElement | null = null;
+let initializationId = 0;
+
+function addedNodeContainsSportsRoot(node: Node): boolean {
+  if (!(node instanceof Element)) return false;
+  return (
+    node.matches(selectors.SPORTS_GAME_ROOT) ||
+    Boolean(node.querySelector(selectors.SPORTS_GAME_ROOT))
+  );
 }
 
-const SETTING_INITIALIZERS = [
-  { key: "hideLikeButton", initialize: hideLikeButton },
-  { key: "autoMuteOnAd", initialize: autoMuteOnAd },
-  { key: "addScreenshot", initialize: addScreenshotButton },
-  { key: "addRecord", initialize: addRecordButton },
-  { key: "addCinemaMode", initialize: addCinemaButton },
-  { key: "addPip", initialize: addPipButton },
-  { key: "enableLiveSync", initialize: enableLiveSync },
-  { key: "hideNickname", initialize: hideNickname },
-  { key: "hideTopNavigation", initialize: hideTopNavigation },
-] as const satisfies readonly SettingInitializer[];
-
-function applySettings(settings: Settings): void {
-  for (const { key, initialize } of SETTING_INITIALIZERS) {
-    void initialize(settings[key]);
-  }
+function removedNodeContainsActiveRoot(node: Node): boolean {
+  return (
+    activeRoot !== null &&
+    node instanceof Element &&
+    (node === activeRoot || node.contains(activeRoot))
+  );
 }
 
-async function initializeContentScript(): Promise<void> {
-  hideCompanionAd();
+async function initializeSportsRoot(root: HTMLElement): Promise<void> {
+  const currentInitializationId = ++initializationId;
+  const module = featureModule ?? (await import("./content-features"));
+  featureModule = module;
 
-  const [settings, video] = await Promise.all([
-    loadSettings(),
-    waitForElement<HTMLVideoElement>(selectors.VIDEO),
-  ]);
-  if (!video) {
-    console.warn("[TVING KBO PLUS] 비디오 요소를 찾지 못했습니다.");
+  if (currentInitializationId !== initializationId || !root.isConnected) {
     return;
   }
 
-  applySettings(settings);
+  await module.initializeContentFeatures(root);
 }
 
-void initializeContentScript().catch((error: unknown) => {
-  console.error("[TVING KBO PLUS] 초기화에 실패했습니다.", error);
+function syncSportsPage(): void {
+  const root = document.querySelector<HTMLElement>(selectors.SPORTS_GAME_ROOT);
+  if (!root) {
+    if (activeRoot) featureModule?.disposeContentFeatures();
+    activeRoot = null;
+    initializationId += 1;
+    return;
+  }
+  if (root === activeRoot) return;
+
+  if (activeRoot) featureModule?.disposeContentFeatures();
+  activeRoot = root;
+  void initializeSportsRoot(root).catch((error: unknown) => {
+    if (activeRoot === root) activeRoot = null;
+    console.error("[TVING KBO PLUS] 초기화에 실패했습니다.", error);
+  });
+}
+
+const pageObserver = new MutationObserver((mutations) => {
+  const sportsRootChanged = mutations.some((mutation) => {
+    if ([...mutation.removedNodes].some(removedNodeContainsActiveRoot)) {
+      return true;
+    }
+    if (activeRoot) return false;
+    return [...mutation.addedNodes].some(addedNodeContainsSportsRoot);
+  });
+  if (sportsRootChanged) syncSportsPage();
 });
+
+function startPageObservation(): void {
+  pageObserver.observe(document, { childList: true, subtree: true });
+  syncSportsPage();
+}
+
+window.addEventListener("pagehide", () => {
+  pageObserver.disconnect();
+  featureModule?.disposeContentFeatures();
+  activeRoot = null;
+  initializationId += 1;
+});
+window.addEventListener("pageshow", startPageObservation);
+
+startPageObservation();

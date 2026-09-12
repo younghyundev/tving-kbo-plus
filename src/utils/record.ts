@@ -1,7 +1,12 @@
 import { getCurrentTime, getTitle, getVideoElement } from "./get";
 
+const RECORDING_FRAME_RATE = 30;
+const RECORDING_FRAME_INTERVAL = 1000 / RECORDING_FRAME_RATE;
+
 let mediaRecorder: MediaRecorder | null = null;
 let chunks: BlobPart[] = [];
+let animationFrameId: number | null = null;
+let recordingStreams: MediaStream[] = [];
 let isRecording = false;
 
 interface CapturableVideoElement extends HTMLVideoElement {
@@ -18,6 +23,19 @@ function canCaptureStream(
   );
 }
 
+function stopCaptureResources(): void {
+  if (animationFrameId !== null) {
+    window.cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+
+  const tracks = new Set(
+    recordingStreams.flatMap((stream) => stream.getTracks()),
+  );
+  for (const track of tracks) track.stop();
+  recordingStreams = [];
+}
+
 function downloadRecording(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -29,73 +47,105 @@ function downloadRecording(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+async function finalizeRecording(recordedChunks: BlobPart[]): Promise<void> {
+  if (recordedChunks.length === 0) return;
+  const blob = new Blob(recordedChunks, { type: "video/mp4" });
+  const title = await getTitle();
+  downloadRecording(blob, `${title || "clip"}-${getCurrentTime()}.mp4`);
+}
+
 export async function record(): Promise<boolean> {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
+  if (mediaRecorder) {
+    if (mediaRecorder.state === "recording") mediaRecorder.stop();
     isRecording = false;
-    return isRecording;
+    return false;
   }
 
   const video = await getVideoElement();
-
-  if (video === null) {
+  if (!video) {
     alert("비디오 요소를 찾을 수 없습니다.");
-    return isRecording;
+    return false;
   }
   if (!canCaptureStream(video)) {
     alert("현재 브라우저에서는 비디오 녹화를 지원하지 않습니다.");
-    return isRecording;
+    return false;
   }
 
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 
-  const ctx = canvas.getContext("2d");
-  if (ctx === null) {
+  const context = canvas.getContext("2d");
+  if (!context) {
     console.error("2d 컨텍스트를 가져오는데 실패했습니다.");
-    return isRecording;
+    return false;
   }
-  const videoStream = canvas.captureStream();
-  const audioStream = video.captureStream().getAudioTracks();
-  const combinedStream = new MediaStream([
-    ...videoStream.getTracks(),
-    ...audioStream,
-  ]);
 
-  mediaRecorder = new MediaRecorder(combinedStream, {
-    mimeType: "video/mp4; codecs=avc1.42E01E,mp4a.40.2",
-  });
+  const canvasStream = canvas.captureStream(RECORDING_FRAME_RATE);
+  const sourceStream = video.captureStream();
+  for (const track of sourceStream.getVideoTracks()) track.stop();
+  const combinedStream = new MediaStream([
+    ...canvasStream.getVideoTracks(),
+    ...sourceStream.getAudioTracks(),
+  ]);
+  recordingStreams = [canvasStream, combinedStream];
+
+  let recorder: MediaRecorder;
+  try {
+    recorder = new MediaRecorder(combinedStream, {
+      mimeType: "video/mp4; codecs=avc1.42E01E,mp4a.40.2",
+    });
+  } catch (error) {
+    stopCaptureResources();
+    throw error;
+  }
+  mediaRecorder = recorder;
   chunks = [];
 
-  mediaRecorder.ondataavailable = (event) => {
+  recorder.ondataavailable = (event) => {
     if (event.data.size > 0) chunks.push(event.data);
   };
 
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(chunks, { type: "video/mp4" });
-    const title = await getTitle();
-    const date = getCurrentTime();
-    downloadRecording(blob, `${title || "clip"}-${date}.mp4`);
-
-    mediaRecorder = null;
+  recorder.onerror = () => {
+    if (mediaRecorder === recorder) mediaRecorder = null;
     chunks = [];
     isRecording = false;
+    stopCaptureResources();
   };
 
-  const drawFrame = () => {
-    if (video.ended || !mediaRecorder || mediaRecorder.state !== "recording")
-      return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    requestAnimationFrame(drawFrame);
+  recorder.onstop = () => {
+    const recordedChunks = chunks;
+    if (mediaRecorder === recorder) mediaRecorder = null;
+    chunks = [];
+    isRecording = false;
+    stopCaptureResources();
+    void finalizeRecording(recordedChunks);
   };
 
-  mediaRecorder.start();
-  drawFrame();
+  let lastDrawTime = -RECORDING_FRAME_INTERVAL;
+  const drawFrame = (timestamp: number) => {
+    if (video.ended || recorder.state !== "recording") return;
+
+    if (timestamp - lastDrawTime >= RECORDING_FRAME_INTERVAL) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      lastDrawTime = timestamp;
+    }
+    animationFrameId = window.requestAnimationFrame(drawFrame);
+  };
+
+  recorder.start(1000);
+  animationFrameId = window.requestAnimationFrame(drawFrame);
   isRecording = true;
-  return isRecording;
+  return true;
 }
 
 export function getRecordingStatus(): boolean {
   return isRecording;
+}
+
+export function stopRecording(): void {
+  if (mediaRecorder?.state === "recording") {
+    mediaRecorder.stop();
+    isRecording = false;
+  }
 }

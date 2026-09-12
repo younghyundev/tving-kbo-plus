@@ -138,6 +138,7 @@ describe("windowed multiview content script", () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+    vi.restoreAllMocks();
     Reflect.deleteProperty(window, INSTALLED_KEY);
     Object.defineProperty(Element.prototype, "requestFullscreen", {
       configurable: true,
@@ -152,8 +153,10 @@ describe("windowed multiview content script", () => {
   });
 
   it("opens multiview without native fullscreen and restores the talk layout", async () => {
+    const intervalSpy = vi.spyOn(window, "setInterval");
     // @ts-expect-error The standalone MAIN-world content script has no exports.
     await import("./windowed-multiview");
+    expect(intervalSpy).not.toHaveBeenCalled();
 
     const multiviewButton = document.querySelector<HTMLButtonElement>(
       'button[aria-label="멀티뷰"]',

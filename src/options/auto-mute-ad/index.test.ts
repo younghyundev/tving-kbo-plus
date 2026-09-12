@@ -40,4 +40,26 @@ describe("autoMuteOnAd", () => {
     await autoMuteOnAd(false);
     expect(video.muted).toBe(false);
   });
+
+  it("플레이어 외부 DOM 변경은 광고로 처리하지 않는다", async () => {
+    document.body.innerHTML = `
+      <section class="sports-player">
+        <video id="tving-player-1"></video>
+      </section>
+      <aside id="outside"></aside>
+    `;
+    const video = document.querySelector("video")!;
+    await autoMuteOnAd(true);
+
+    const outsideAd = document.createElement("button");
+    outsideAd.className =
+      "PcAdvertisementLinkButton-module__hash__advertisementLinkButton";
+    document.getElementById("outside")?.appendChild(outsideAd);
+    await Promise.resolve();
+    expect(video.muted).toBe(false);
+
+    const playerAd = outsideAd.cloneNode() as HTMLButtonElement;
+    document.querySelector(".sports-player")?.appendChild(playerAd);
+    await vi.waitFor(() => expect(video.muted).toBe(true));
+  });
 });

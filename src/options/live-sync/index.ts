@@ -1,6 +1,9 @@
-import { initLiveSync } from "../../utils/live-sync";
+import { disposeLiveSync, initLiveSync } from "../../utils/live-sync";
 
-export function enableLiveSync(enabled: boolean) {
-  if (!enabled) return;
-  initLiveSync();
+export function enableLiveSync(enabled: boolean): void {
+  if (!enabled) {
+    disposeLiveSync();
+    return;
+  }
+  void initLiveSync();
 }

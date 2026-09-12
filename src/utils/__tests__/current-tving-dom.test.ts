@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import selectors from "../../constant/selectors";
 import { hideLikeButton } from "../../options/heart-button";
 import { hideNickname } from "../../options/hide-nickname";
-import { initLiveSync } from "../live-sync";
+import { disposeLiveSync, initLiveSync } from "../live-sync";
 
 describe("현재 TVING DOM 호환성", () => {
   beforeEach(() => {
@@ -39,6 +39,7 @@ describe("현재 TVING DOM 호환성", () => {
   });
 
   afterEach(() => {
+    disposeLiveSync();
     vi.clearAllTimers();
     vi.useRealTimers();
   });
@@ -75,5 +76,26 @@ describe("현재 TVING DOM 호환성", () => {
     await initLiveSync();
 
     expect(document.getElementById("kbo-plus-live-sync-btn")).not.toBeNull();
+  });
+
+  it("채팅 UI가 제거되면 라이브 동기화 타이머와 상태를 정리한다", async () => {
+    const video = document.querySelector<HTMLVideoElement>("video")!;
+    const textarea = document.querySelector<HTMLTextAreaElement>("textarea")!;
+    const container = textarea.closest<HTMLElement>("div.relative")!;
+    Object.defineProperty(video, "duration", {
+      configurable: true,
+      value: 100,
+    });
+    video.currentTime = 90;
+
+    await initLiveSync();
+    expect(textarea.placeholder).toBe("지연시간: 10.0초");
+
+    document.getElementById("kbo-plus-live-sync-btn")?.remove();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(textarea.placeholder).toBe("");
+    expect(container.style.position).toBe("");
+    expect(document.getElementById("kbo-plus-live-sync-style")).toBeNull();
   });
 });
