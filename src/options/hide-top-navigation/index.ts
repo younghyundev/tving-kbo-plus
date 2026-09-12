@@ -41,6 +41,13 @@ export function hideTopNavigation(enabled: boolean) {
       --sports-gnb-height: 0px !important;
       --sports-type-header-height: 0px !important;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      ${selectors.SPORTS_GNB_WRAPPER} > *,
+      ${selectors.SPORTS_TYPE_HEADER_WRAPPER} > * {
+        transition-duration: 0.01ms !important;
+      }
+    }
   `;
   document.head.appendChild(style);
 

@@ -1,4 +1,8 @@
 (() => {
+  type RuntimeWindow = Window & {
+    __TVING_KBO_PLUS_WINDOWED_MULTIVIEW__?: boolean;
+  };
+
   const selectors = {
     multiviewButton: 'button[aria-label="\uBA40\uD2F0\uBDF0"]',
     chatExitButton: 'button[aria-label="chat exit"]',
@@ -12,23 +16,24 @@
   const ACTIVE_ATTRIBUTE = "data-kbo-plus-windowed-multiview-active";
   const WAIT_TIMEOUT = 3000;
   const SYNC_INTERVAL = 250;
+  const runtimeWindow = window as RuntimeWindow;
 
-  if (window[INSTALLED_KEY]) return;
-  window[INSTALLED_KEY] = true;
+  if (runtimeWindow[INSTALLED_KEY]) return;
+  runtimeWindow[INSTALLED_KEY] = true;
   document.documentElement?.setAttribute(INSTALLED_ATTRIBUTE, "");
 
   const originalRequestFullscreen = Element.prototype.requestFullscreen;
   const originalExitFullscreen = Document.prototype.exitFullscreen;
-  const connectedButtons = new WeakSet();
+  const connectedButtons = new WeakSet<HTMLButtonElement>();
   let suppressNextFullscreen = false;
   let fakeFullscreenActive = false;
   let siteFullscreenActive = false;
   let starting = false;
   let multiviewWasVisible = false;
-  let normalPlayerClassName = null;
+  let normalPlayerClassName: string | null = null;
   let syncQueued = false;
-  let observedMultiview = null;
-  let multiviewObserver = null;
+  let observedMultiview: HTMLElement | null = null;
+  let multiviewObserver: MutationObserver | null = null;
 
   if (typeof originalRequestFullscreen === "function") {
     Element.prototype.requestFullscreen = function (options) {
@@ -52,7 +57,7 @@
     };
   }
 
-  function setRootAttribute(name, enabled) {
+  function setRootAttribute(name: string, enabled: boolean): void {
     const root = document.documentElement;
     if (!root) return;
 
@@ -60,7 +65,10 @@
     else if (!enabled && root.hasAttribute(name)) root.removeAttribute(name);
   }
 
-  function waitFor(predicate, timeout = WAIT_TIMEOUT) {
+  function waitFor<T>(
+    predicate: () => T | null,
+    timeout = WAIT_TIMEOUT,
+  ): Promise<T> {
     const value = predicate();
     if (value !== null) return Promise.resolve(value);
 
@@ -87,12 +95,12 @@
     });
   }
 
-  function getButton(selector) {
-    const element = document.querySelector(selector);
+  function getButton(selector: string): HTMLButtonElement | null {
+    const element = document.querySelector<HTMLButtonElement>(selector);
     return element?.tagName === "BUTTON" ? element : null;
   }
 
-  function isNormalWindowedLayout() {
+  function isNormalWindowedLayout(): boolean {
     return (
       !fakeFullscreenActive &&
       !document.fullscreenElement &&
@@ -100,21 +108,37 @@
     );
   }
 
-  function getSportsPlayer() {
-    return document.querySelector(selectors.sportsPlayer);
+  function getSportsPlayer(): HTMLElement | null {
+    return document.querySelector<HTMLElement>(selectors.sportsPlayer);
   }
 
-  function clamp(value, min, max) {
+  function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
   }
 
-  function setImportantStyles(element, styles) {
+  function setImportantStyles(
+    element: HTMLElement,
+    styles: Readonly<Record<string, string>>,
+  ): void {
     for (const [property, value] of Object.entries(styles)) {
+      if (
+        element.style.getPropertyValue(property) === value &&
+        element.style.getPropertyPriority(property) === "important"
+      ) {
+        continue;
+      }
       element.style.setProperty(property, value, "important");
     }
   }
 
-  function observeMultiview(multiview) {
+  function prefersReducedMotion(): boolean {
+    return (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
+
+  function observeMultiview(multiview: HTMLElement): void {
     if (observedMultiview === multiview) return;
 
     multiviewObserver?.disconnect();
@@ -128,8 +152,8 @@
     });
   }
 
-  function applyResponsiveMultiviewLayout(multiview) {
-    const main = multiview.querySelector("main");
+  function applyResponsiveMultiviewLayout(multiview: HTMLElement): void {
+    const main = multiview.querySelector<HTMLElement>("main");
     const streamCount = main?.children.length || 0;
     if (!main || streamCount === 0) return;
 
@@ -140,7 +164,7 @@
       Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
       16;
     const tileMargin = rootFontSize * 0.4;
-    const footer = multiview.querySelector("footer");
+    const footer = multiview.querySelector<HTMLElement>("footer");
     const overlayVisible =
       !footer ||
       Number.parseFloat(getComputedStyle(footer).opacity) > 0.05;
@@ -185,17 +209,41 @@
     }
 
     const mainLeft = Math.max(sideReserve, (width - mainWidth) / 2);
-    setImportantStyles(multiview, { overflow: "hidden" });
-    multiview.setAttribute(
-      "data-kbo-plus-windowed-multiview-ui-visible",
-      String(overlayVisible),
-    );
-
     const gridContainer = main.parentElement;
+    const videos = main.querySelectorAll<HTMLVideoElement>("video");
+    const footerScale = footer
+      ? Math.min(
+          1,
+          visibleTrayHeight /
+            (footer.offsetHeight || rootFontSize * 7.667),
+        )
+      : null;
+    const hint = Array.from(
+      multiview.querySelectorAll<HTMLElement>("aside"),
+    ).find((element) => !main.contains(element));
+    const hintBottom = hint
+      ? visibleControlsReserve +
+        Math.max(0, (visibleTrayHeight - hint.offsetHeight) / 2)
+      : null;
+    const reduceMotion = prefersReducedMotion();
+
+    setImportantStyles(multiview, { overflow: "hidden" });
+    const overlayValue = String(overlayVisible);
+    if (
+      multiview.getAttribute(
+        "data-kbo-plus-windowed-multiview-ui-visible",
+      ) !== overlayValue
+    ) {
+      multiview.setAttribute(
+        "data-kbo-plus-windowed-multiview-ui-visible",
+        overlayValue,
+      );
+    }
+
     if (gridContainer && gridContainer !== multiview) {
       setImportantStyles(gridContainer, {
-        top: "0",
-        left: "0",
+        top: "0px",
+        left: "0px",
         width: "100%",
         height: "100%",
       });
@@ -207,12 +255,13 @@
       left: `${mainLeft}px`,
       width: `${mainWidth}px`,
       height: `${contentHeight}px`,
-      margin: "0",
-      transition:
-        "top 300ms ease, left 300ms ease, width 300ms ease, height 300ms ease",
+      margin: "0px",
+      transition: reduceMotion
+        ? "none"
+        : "top 300ms ease, left 300ms ease, width 300ms ease, height 300ms ease",
     });
 
-    for (const video of main.querySelectorAll("video")) {
+    for (const video of videos) {
       setImportantStyles(video, {
         "object-fit": "contain",
         "max-width": "100%",
@@ -220,13 +269,7 @@
       });
     }
 
-    if (footer) {
-      const naturalFooterHeight =
-        footer.offsetHeight || rootFontSize * 7.667;
-      const footerScale = Math.min(
-        1,
-        visibleTrayHeight / naturalFooterHeight,
-      );
+    if (footer && footerScale !== null) {
       setImportantStyles(footer, {
         bottom: `${visibleControlsReserve}px`,
         transform: `scale(${footerScale})`,
@@ -234,23 +277,17 @@
       });
     }
 
-    const hint = Array.from(multiview.querySelectorAll("aside")).find(
-      (element) => !main.contains(element),
-    );
-    if (hint) {
-      const hintBottom =
-        visibleControlsReserve +
-        Math.max(0, (visibleTrayHeight - hint.offsetHeight) / 2);
+    if (hint && hintBottom !== null) {
       setImportantStyles(hint, {
         bottom: `${hintBottom}px`,
         opacity: overlayVisible ? "1" : "0",
-        transition: "opacity 200ms ease",
+        transition: reduceMotion ? "none" : "opacity 200ms ease",
       });
     }
   }
 
-  function enforceWindowedLayout() {
-    const multiview = document.querySelector(selectors.multiview);
+  function enforceWindowedLayout(): void {
+    const multiview = document.querySelector<HTMLElement>(selectors.multiview);
     if (!fakeFullscreenActive || !multiview) {
       return;
     }
@@ -271,14 +308,14 @@
     applyResponsiveMultiviewLayout(multiview);
   }
 
-  function isTalkOpen() {
+  function isTalkOpen(): boolean {
     return /\/talk\/?$/.test(window.location.pathname);
   }
 
-  function handleTriggerClick(event) {
+  function handleTriggerClick(event: MouseEvent): void {
     const button = event.currentTarget;
     if (
-      button?.tagName !== "BUTTON" ||
+      !(button instanceof HTMLButtonElement) ||
       !button.hasAttribute(TRIGGER_ATTRIBUTE) ||
       !isNormalWindowedLayout()
     ) {
@@ -290,7 +327,7 @@
     void startWindowedMultiview();
   }
 
-  function syncTrigger() {
+  function syncTrigger(): void {
     const button = getButton(selectors.multiviewButton);
     if (!button) return;
 
@@ -318,7 +355,7 @@
     }
   }
 
-  async function exitWindowedLayout() {
+  async function exitWindowedLayout(): Promise<void> {
     if (!fakeFullscreenActive) return;
 
     const exitButton = await waitFor(() =>
@@ -357,7 +394,7 @@
     syncTrigger();
   }
 
-  async function startWindowedMultiview() {
+  async function startWindowedMultiview(): Promise<void> {
     if (starting || fakeFullscreenActive) return;
     starting = true;
     setRootAttribute(ACTIVE_ATTRIBUTE, true);
@@ -396,7 +433,9 @@
       });
       multiviewButton.click();
 
-      await waitFor(() => document.querySelector(selectors.multiview));
+      await waitFor(() =>
+        document.querySelector<HTMLElement>(selectors.multiview),
+      );
       multiviewWasVisible = true;
       enforceWindowedLayout();
     } catch (error) {
@@ -409,7 +448,7 @@
     }
   }
 
-  function syncMultiviewState() {
+  function syncMultiviewState(): void {
     const visible = Boolean(document.querySelector(selectors.multiview));
     if (visible) {
       multiviewWasVisible = true;
@@ -422,13 +461,13 @@
     }
   }
 
-  function syncState() {
+  function syncState(): void {
     setRootAttribute(INSTALLED_ATTRIBUTE, true);
     syncTrigger();
     syncMultiviewState();
   }
 
-  function queueSync() {
+  function queueSync(): void {
     if (syncQueued) return;
     syncQueued = true;
 

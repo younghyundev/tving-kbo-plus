@@ -2,34 +2,52 @@ import selectors from "../../constant/selectors";
 import { getVideoElement } from "../../utils/get";
 
 let observer: MutationObserver | null = null;
-let adActive = false;
+let mutedVideo: HTMLVideoElement | null = null;
 let mutedBeforeAd = false;
 
-export async function autoMuteOnAd(enabled: boolean) {
-  if (!enabled || observer) return;
+function getCurrentVideo(): HTMLVideoElement | null {
+  return document.querySelector<HTMLVideoElement>(selectors.VIDEO);
+}
 
-  const updateMuteState = async () => {
-    const video = await getVideoElement();
-    if (!video) return;
+function restoreMuteState(): void {
+  if (mutedVideo) mutedVideo.muted = mutedBeforeAd;
+  mutedVideo = null;
+}
 
-    const hasAd = Boolean(document.querySelector(selectors.AD_BUTTON));
-    if (hasAd && !adActive) {
-      mutedBeforeAd = video.muted;
-      video.muted = true;
-      adActive = true;
-      return;
-    }
+function updateMuteState(video = getCurrentVideo()): void {
+  if (!video) return;
 
-    if (!hasAd && adActive) {
-      video.muted = mutedBeforeAd;
-      adActive = false;
-    }
-  };
+  const hasAd = Boolean(document.querySelector(selectors.AD_BUTTON));
+  if (!hasAd) {
+    restoreMuteState();
+    return;
+  }
+  if (mutedVideo === video) return;
 
-  await updateMuteState();
+  restoreMuteState();
+  mutedBeforeAd = video.muted;
+  video.muted = true;
+  mutedVideo = video;
+}
 
-  observer = new MutationObserver(updateMuteState);
+function stopAutoMute(): void {
+  observer?.disconnect();
+  observer = null;
+  restoreMuteState();
+}
 
+export async function autoMuteOnAd(enabled: boolean): Promise<void> {
+  if (!enabled) {
+    stopAutoMute();
+    return;
+  }
+  if (observer) return;
+
+  const video = getCurrentVideo() ?? (await getVideoElement());
+  if (!video) return;
+  updateMuteState(video);
+
+  observer = new MutationObserver(() => updateMuteState());
   observer.observe(document.body, {
     childList: true,
     subtree: true,

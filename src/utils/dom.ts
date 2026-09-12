@@ -1,33 +1,79 @@
-import { createRoot, Root } from "react-dom/client";
+import type { ReactNode } from "react";
+import { createRoot, type Root } from "react-dom/client";
 
-export function injectAfter(node: React.ReactNode, target: HTMLElement): Root {
-  const container = document.createElement("div");
-  target.insertAdjacentElement("afterend", container);
+type SiblingPosition = "afterend" | "beforebegin";
+
+function injectSibling(
+  node: ReactNode,
+  target: HTMLElement,
+  position: SiblingPosition,
+): Root {
+  const container = document.createElement("span");
+  container.className = "kbo-plus-control-slot";
+  container.style.display = "contents";
+  target.insertAdjacentElement(position, container);
+
   const root = createRoot(container);
   root.render(node);
   return root;
 }
 
-export function injectBefore(node: React.ReactNode, target: HTMLElement): Root {
-  const container = document.createElement("div");
-  target.insertAdjacentElement("beforebegin", container);
-  const root = createRoot(container);
-  root.render(node);
-  return root;
+export function injectAfter(node: ReactNode, target: HTMLElement): Root {
+  return injectSibling(node, target, "afterend");
 }
 
-export async function waitForElement(
+export function injectBefore(node: ReactNode, target: HTMLElement): Root {
+  return injectSibling(node, target, "beforebegin");
+}
+
+export function waitForElement<T extends Element = HTMLElement>(
   selector: string,
-  timeout: number = 5000
-): Promise<HTMLElement | null> {
-  const startTime = Date.now();
-  while (document.querySelector(selector) === null) {
-    // 타임아웃
-    if (Date.now() - startTime >= timeout) {
-      return null;
-    }
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-  }
+  timeout = 5000,
+  root: ParentNode = document,
+): Promise<T | null> {
+  const existingElement = root.querySelector<T>(selector);
+  if (existingElement) return Promise.resolve(existingElement);
 
-  return document.querySelector(selector) as HTMLElement;
+  return new Promise((resolve) => {
+    const observedNode = root instanceof Document ? root.documentElement : root;
+    if (!observedNode) {
+      resolve(null);
+      return;
+    }
+
+    let settled = false;
+    let timeoutId = 0;
+    const observer = new MutationObserver(() => {
+      const element = root.querySelector<T>(selector);
+      if (element) finish(element);
+    });
+    const finish = (element: T | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      observer.disconnect();
+      resolve(element);
+    };
+
+    timeoutId = window.setTimeout(() => finish(null), timeout);
+    observer.observe(observedNode, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+  });
+}
+
+export function setStyleElement(id: string, css: string, enabled = true): void {
+  const existingStyle = document.getElementById(id);
+  if (!enabled) {
+    existingStyle?.remove();
+    return;
+  }
+  if (existingStyle) return;
+
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = css;
+  document.head.appendChild(style);
 }

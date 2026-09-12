@@ -25,12 +25,14 @@ export async function toggleCinemaMode(isWideMode: boolean) {
   const video = await getVideoElement();
   const container =
     video?.closest<HTMLElement>(selectors.PLAYER_CONTAINER) ??
-    (await waitForElement(selectors.PLAYER_CONTAINER));
+    (await waitForElement<HTMLElement>(selectors.PLAYER_CONTAINER));
   const playerRoot =
     video?.closest<HTMLElement>(".cjp-root") ??
-    (await waitForElement(selectors.PLAYER_WRAP));
+    (await waitForElement<HTMLElement>(selectors.PLAYER_WRAP));
   const wrapper = playerRoot?.parentElement;
-  const fullScreenButton = await waitForElement(selectors.FULLSCREEN_BUTTON);
+  const fullScreenButton = await waitForElement<HTMLElement>(
+    selectors.FULLSCREEN_BUTTON,
+  );
 
   if (!container || !playerRoot || !wrapper || !fullScreenButton) {
     console.warn("필요한 요소를 찾을 수 없습니다");

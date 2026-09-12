@@ -20,10 +20,12 @@ export async function togglePip(): Promise<boolean> {
 
   await video.requestPictureInPicture();
 
-  for (const action of SEEK_ACTIONS) {
-    navigator.mediaSession.setActionHandler(action, null);
+  if ("mediaSession" in navigator) {
+    for (const action of SEEK_ACTIONS) {
+      navigator.mediaSession.setActionHandler(action, null);
+    }
+    navigator.mediaSession.setPositionState();
   }
-  navigator.mediaSession.setPositionState();
 
   return true;
 }

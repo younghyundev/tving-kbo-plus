@@ -24,10 +24,8 @@ export async function screenshot(): Promise<void> {
   const link = document.createElement("a");
   const title = await getTitle();
   const date = getCurrentTime();
-  link.download = `${title ? title : "screenshot"}-${date}.png`;
+  link.download = `${title || "screenshot"}-${date}.png`;
   link.href = image;
 
-  document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
 }

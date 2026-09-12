@@ -7,10 +7,16 @@ export const RecordButton = () => {
     <button
       className="control-button"
       type="button"
-      aria-label="녹화"
+      aria-label={isRecording ? "녹화 중지" : "녹화"}
       onClick={handleRecord}
+      title={isRecording ? "녹화 중지" : "녹화"}
     >
-      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 28 28"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         {isRecording ? (
           <rect x="9" y="9" width="10" height="10" fill="red" />
         ) : (

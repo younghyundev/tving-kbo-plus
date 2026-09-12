@@ -1,98 +1,70 @@
-import { useState, useEffect } from "react";
 import * as S from "./App.styled";
-import { DEFAULT_SETTINGS, Settings } from "./types";
+import { useSettings } from "./hooks/use-settings";
+import type { SettingKey } from "./types";
 
-function App() {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [settings, setSettings] = useState<Settings>({ ...DEFAULT_SETTINGS });
+interface SettingDefinition {
+  key: SettingKey;
+  label: string;
+}
 
-  useEffect(() => {
-    chrome.storage.sync.get("tvingSettings", (result) => {
-      if (result.tvingSettings) {
-        setSettings({ ...DEFAULT_SETTINGS, ...result.tvingSettings });
-      }
-      setLoading(false);
-    });
-  }, []);
+const SETTING_DEFINITIONS = [
+  { key: "hideLikeButton", label: "좋아요 버튼 숨기기" },
+  { key: "autoMuteOnAd", label: "광고 시 자동 음소거" },
+  { key: "addScreenshot", label: "스크린샷 버튼 활성화" },
+  { key: "addRecord", label: "녹화 버튼 활성화" },
+  { key: "addCinemaMode", label: "영화관 모드 버튼 활성화" },
+  { key: "addPip", label: "PIP 모드 버튼 활성화" },
+  { key: "hideNickname", label: "채팅 닉네임 숨기기" },
+  { key: "hideTopNavigation", label: "상단 메뉴 숨기기" },
+  { key: "enableLiveSync", label: "채팅창에 지연시간 표기" },
+] as const satisfies readonly SettingDefinition[];
 
-  const handleToggle = (key: keyof Settings) => {
-    const newSettings = {
-      ...settings,
-      [key]: !settings[key],
-    };
-    setSettings(newSettings);
-    chrome.storage.sync.set({ tvingSettings: newSettings });
-  };
+interface SettingToggleProps {
+  checked: boolean;
+  definition: SettingDefinition;
+  onToggle: (key: SettingKey) => void;
+}
 
-  if (loading) return <></>;
+function SettingToggle({ checked, definition, onToggle }: SettingToggleProps) {
+  const labelId = `setting-${definition.key}`;
 
   return (
-    <S.Container>
-      <S.Title>TVING KBO PLUS</S.Title>
+    <S.SettingRow>
+      <S.Label id={labelId}>{definition.label}</S.Label>
+      <S.ToggleButton
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby={labelId}
+        $isActive={checked}
+        onClick={() => onToggle(definition.key)}
+      />
+    </S.SettingRow>
+  );
+}
+
+function App() {
+  const { settings, toggleSetting } = useSettings();
+
+  if (!settings) return null;
+
+  return (
+    <S.Container aria-labelledby="extension-title">
+      <S.GlobalStyle />
+      <S.Title id="extension-title" translate="no">
+        TVING KBO PLUS
+      </S.Title>
       <S.Notice>설정 변경 후 새로고침해야 적용됩니다.</S.Notice>
-      <S.SettingRow>
-        <S.Label>좋아요 버튼 숨기기</S.Label>
-        <S.ToggleButton
-          isActive={settings.hideLikeButton}
-          onClick={() => handleToggle("hideLikeButton")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>광고시 자동 음소거</S.Label>
-        <S.ToggleButton
-          isActive={settings.autoMuteOnAd}
-          onClick={() => handleToggle("autoMuteOnAd")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>스크린샷 버튼 활성화</S.Label>
-        <S.ToggleButton
-          isActive={settings.addScreenshot}
-          onClick={() => handleToggle("addScreenshot")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>녹화 버튼 활성화</S.Label>
-        <S.ToggleButton
-          isActive={settings.addRecord}
-          onClick={() => handleToggle("addRecord")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>영화관 모드 버튼 활성화</S.Label>
-        <S.ToggleButton
-          isActive={settings.addCinemaMode}
-          onClick={() => handleToggle("addCinemaMode")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>PIP 모드 버튼 활성화</S.Label>
-        <S.ToggleButton
-          isActive={settings.addPip}
-          onClick={() => handleToggle("addPip")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>채팅 닉네임 숨기기</S.Label>
-        <S.ToggleButton
-          isActive={settings.hideNickname}
-          onClick={() => handleToggle("hideNickname")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>상단 메뉴 숨기기</S.Label>
-        <S.ToggleButton
-          isActive={settings.hideTopNavigation}
-          onClick={() => handleToggle("hideTopNavigation")}
-        />
-      </S.SettingRow>
-      <S.SettingRow>
-        <S.Label>채팅창에 지연시간 표기</S.Label>
-        <S.ToggleButton
-          isActive={settings.enableLiveSync}
-          onClick={() => handleToggle("enableLiveSync")}
-        />
-      </S.SettingRow>
+      <S.SettingsList>
+        {SETTING_DEFINITIONS.map((definition) => (
+          <SettingToggle
+            key={definition.key}
+            checked={settings[definition.key]}
+            definition={definition}
+            onToggle={toggleSetting}
+          />
+        ))}
+      </S.SettingsList>
     </S.Container>
   );
 }

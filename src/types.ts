@@ -10,6 +10,10 @@ export interface Settings {
   hideTopNavigation: boolean;
 }
 
+export type SettingKey = keyof Settings;
+
+export const SETTINGS_STORAGE_KEY = "tvingSettings";
+
 export const DEFAULT_SETTINGS: Settings = {
   hideLikeButton: false,
   autoMuteOnAd: false,

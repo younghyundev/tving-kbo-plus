@@ -1,14 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
-export const useEventListener = (
+export function useEventListener<TEvent extends Event>(
   target: EventTarget | null,
   type: string,
-  callback: EventListenerOrEventListenerObject | null
-) => {
+  listener: ((event: TEvent) => void) | null,
+): void {
+  const listenerRef = useRef(listener);
+
   useEffect(() => {
-    if (target && callback) {
-      target.addEventListener(type, callback);
-      return () => target.removeEventListener(type, callback);
-    }
-  }, [target, type, callback]);
-};
+    listenerRef.current = listener;
+  }, [listener]);
+
+  useEffect(() => {
+    if (!target) return;
+
+    const handleEvent: EventListener = (event) => {
+      listenerRef.current?.(event as TEvent);
+    };
+    target.addEventListener(type, handleEvent);
+    return () => target.removeEventListener(type, handleEvent);
+  }, [target, type]);
+}

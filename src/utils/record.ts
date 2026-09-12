@@ -4,6 +4,31 @@ let mediaRecorder: MediaRecorder | null = null;
 let chunks: BlobPart[] = [];
 let isRecording = false;
 
+interface CapturableVideoElement extends HTMLVideoElement {
+  captureStream(): MediaStream;
+}
+
+function canCaptureStream(
+  video: HTMLVideoElement,
+): video is CapturableVideoElement {
+  return (
+    "captureStream" in video &&
+    typeof (video as Partial<CapturableVideoElement>).captureStream ===
+      "function"
+  );
+}
+
+function downloadRecording(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = url;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export async function record(): Promise<boolean> {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     mediaRecorder.stop();
@@ -17,6 +42,10 @@ export async function record(): Promise<boolean> {
     alert("비디오 요소를 찾을 수 없습니다.");
     return isRecording;
   }
+  if (!canCaptureStream(video)) {
+    alert("현재 브라우저에서는 비디오 녹화를 지원하지 않습니다.");
+    return isRecording;
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
@@ -28,7 +57,7 @@ export async function record(): Promise<boolean> {
     return isRecording;
   }
   const videoStream = canvas.captureStream();
-  const audioStream = (video as any).captureStream().getAudioTracks();
+  const audioStream = video.captureStream().getAudioTracks();
   const combinedStream = new MediaStream([
     ...videoStream.getTracks(),
     ...audioStream,
@@ -39,23 +68,15 @@ export async function record(): Promise<boolean> {
   });
   chunks = [];
 
-  mediaRecorder.ondataavailable = (e) => {
-    chunks.push(e.data);
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data.size > 0) chunks.push(event.data);
   };
 
   mediaRecorder.onstop = async () => {
     const blob = new Blob(chunks, { type: "video/mp4" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
     const title = await getTitle();
     const date = getCurrentTime();
-    link.download = `${title ? title : "clip"}-${date}.mp4`;
-    link.href = url;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadRecording(blob, `${title || "clip"}-${date}.mp4`);
 
     mediaRecorder = null;
     chunks = [];

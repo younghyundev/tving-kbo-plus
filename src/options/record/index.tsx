@@ -1,17 +1,14 @@
 import { RecordButton } from "../../components/record";
 import selectors from "../../constant/selectors";
-import { injectAfter, waitForElement } from "../../utils/dom";
+import { mountControl } from "../mount-control";
 
-export async function addRecordButton(enabled: boolean) {
-  if (!enabled) return;
-  if (document.querySelector('button[aria-label="녹화"]')) return;
-
-  const space = await waitForElement(selectors.SPACE);
-
-  if (!space) {
-    console.warn("error, no space element");
-    return;
-  }
-
-  injectAfter(<RecordButton />, space);
+export function addRecordButton(enabled: boolean) {
+  return mountControl({
+    buttonSelector: 'button[aria-label="녹화"]',
+    enabled,
+    name: "녹화",
+    node: <RecordButton />,
+    position: "after",
+    targetSelector: selectors.SPACE,
+  });
 }
