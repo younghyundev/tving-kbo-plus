@@ -3,6 +3,7 @@ import selectors from "../../constant/selectors";
 const STYLE_ID = "kbo-plus-hide-top-navigation-style";
 const HIDDEN_ATTRIBUTE = "data-kbo-plus-top-navigation-hidden";
 const SCROLL_THRESHOLD = 24;
+const TRANSITION_DURATION = 250;
 
 export function hideTopNavigation(enabled: boolean) {
   if (!enabled || document.getElementById(STYLE_ID)) return;
@@ -10,9 +11,27 @@ export function hideTopNavigation(enabled: boolean) {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
+    ${selectors.SPORTS_GNB_WRAPPER},
+    ${selectors.SPORTS_TYPE_HEADER_WRAPPER} {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      transition:
+        opacity ${TRANSITION_DURATION}ms ease,
+        transform ${TRANSITION_DURATION}ms ease,
+        visibility 0s linear 0s !important;
+    }
+
     :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_GNB_WRAPPER},
     :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_TYPE_HEADER_WRAPPER} {
-      display: none !important;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-12px);
+      transition:
+        opacity ${TRANSITION_DURATION}ms ease,
+        transform ${TRANSITION_DURATION}ms ease,
+        visibility 0s linear ${TRANSITION_DURATION}ms !important;
     }
 
     :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_GAME_ROOT} {
