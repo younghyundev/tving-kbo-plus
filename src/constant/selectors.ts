@@ -9,6 +9,8 @@ export default {
   PLAYER_CONTAINER: ".sports-player, .player-container",
   SPACE: ".con__space-center", // 툴바 가운데 기준점
   PLAYER_WRAP: ".sports-player .cjp-root, .player-wrap",
+  PLAYER_COMPANION_AD:
+    "#sports-game-scroll-root .sports-contents-main > div.w-full > div > section:first-child",
   FULLSCREEN_BUTTON: ".con__fullscreen",
   CHAT_TEXTAREA:
     'textarea[aria-label="메시지 입력"], #live-chat-textarea',

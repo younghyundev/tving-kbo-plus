@@ -2,6 +2,7 @@ import selectors from "./constant/selectors";
 import { autoMuteOnAd } from "./options/auto-mute-ad";
 import { addCinemaButton } from "./options/cinema-mode";
 import { hideLikeButton } from "./options/heart-button";
+import { hideCompanionAd } from "./options/hide-companion-ad";
 import { hideNickname } from "./options/hide-nickname";
 import { hideTopNavigation } from "./options/hide-top-navigation";
 import { enableLiveSync } from "./options/live-sync";
@@ -52,6 +53,7 @@ class Content {
   }
 
   private applySettings() {
+    hideCompanionAd();
     hideLikeButton(this.settings.hideLikeButton);
     autoMuteOnAd(this.settings.autoMuteOnAd);
     addScreenshotButton(this.settings.addScreenshot);
