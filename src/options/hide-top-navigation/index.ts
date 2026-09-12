@@ -11,19 +11,20 @@ export function hideTopNavigation(enabled: boolean) {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    ${selectors.SPORTS_GNB_WRAPPER},
-    ${selectors.SPORTS_TYPE_HEADER_WRAPPER} {
+    ${selectors.SPORTS_GNB_WRAPPER} > *,
+    ${selectors.SPORTS_TYPE_HEADER_WRAPPER} > * {
       opacity: 1;
       visibility: visible;
       transform: translateY(0);
       transition:
         opacity ${TRANSITION_DURATION}ms ease,
         transform ${TRANSITION_DURATION}ms ease,
-        visibility 0s linear 0s !important;
+        visibility 0s linear 0s,
+        background-color 300ms linear !important;
     }
 
-    :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_GNB_WRAPPER},
-    :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_TYPE_HEADER_WRAPPER} {
+    :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_GNB_WRAPPER} > *,
+    :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_TYPE_HEADER_WRAPPER} > * {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
@@ -31,7 +32,8 @@ export function hideTopNavigation(enabled: boolean) {
       transition:
         opacity ${TRANSITION_DURATION}ms ease,
         transform ${TRANSITION_DURATION}ms ease,
-        visibility 0s linear ${TRANSITION_DURATION}ms !important;
+        visibility 0s linear ${TRANSITION_DURATION}ms,
+        background-color 300ms linear !important;
     }
 
     :root[${HIDDEN_ATTRIBUTE}] ${selectors.SPORTS_GAME_ROOT} {
