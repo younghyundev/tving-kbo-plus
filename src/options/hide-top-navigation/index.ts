@@ -8,8 +8,8 @@ export function hideTopNavigation(enabled: boolean) {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    ${selectors.SPORTS_GNB},
-    ${selectors.SPORTS_TYPE_HEADER} {
+    ${selectors.SPORTS_GNB_WRAPPER},
+    ${selectors.SPORTS_TYPE_HEADER_WRAPPER} {
       display: none !important;
     }
 

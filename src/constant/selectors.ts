@@ -18,7 +18,8 @@ export default {
   CHAT_TEAM_BADGE:
     'img[src*="/badge/kbo/"], span.ml-\\[0\\.333rem\\] img',
   SPORTS_GAME_ROOT: "#sports-game-scroll-root",
-  SPORTS_GNB: "#TVING-SPORTS-GNB",
-  SPORTS_TYPE_HEADER:
-    "#sports-game-scroll-root > main > .hidden-in-fullscreen-mode.contents > header",
+  SPORTS_GNB_WRAPPER:
+    "body > .hidden-in-fullscreen-mode:has(> #TVING-SPORTS-GNB)",
+  SPORTS_TYPE_HEADER_WRAPPER:
+    "#sports-game-scroll-root > main > .hidden-in-fullscreen-mode.contents",
 } as const;
