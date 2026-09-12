@@ -9,7 +9,7 @@ function App() {
   useEffect(() => {
     chrome.storage.sync.get("tvingSettings", (result) => {
       if (result.tvingSettings) {
-        setSettings(result.tvingSettings);
+        setSettings({ ...DEFAULT_SETTINGS, ...result.tvingSettings });
       }
       setLoading(false);
     });
@@ -77,6 +77,13 @@ function App() {
         <S.ToggleButton
           isActive={settings.hideNickname}
           onClick={() => handleToggle("hideNickname")}
+        />
+      </S.SettingRow>
+      <S.SettingRow>
+        <S.Label>상단 메뉴 숨기기</S.Label>
+        <S.ToggleButton
+          isActive={settings.hideTopNavigation}
+          onClick={() => handleToggle("hideTopNavigation")}
         />
       </S.SettingRow>
       <S.SettingRow>

@@ -17,4 +17,8 @@ export default {
     ":scope > span.align-middle.text-gray-600, :scope > span.text-\\[\\#808080\\]",
   CHAT_TEAM_BADGE:
     'img[src*="/badge/kbo/"], span.ml-\\[0\\.333rem\\] img',
+  SPORTS_GAME_ROOT: "#sports-game-scroll-root",
+  SPORTS_GNB: "#TVING-SPORTS-GNB",
+  SPORTS_TYPE_HEADER:
+    "#sports-game-scroll-root > main > .hidden-in-fullscreen-mode.contents > header",
 } as const;

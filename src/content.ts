@@ -3,6 +3,7 @@ import { autoMuteOnAd } from "./options/auto-mute-ad";
 import { addCinemaButton } from "./options/cinema-mode";
 import { hideLikeButton } from "./options/heart-button";
 import { hideNickname } from "./options/hide-nickname";
+import { hideTopNavigation } from "./options/hide-top-navigation";
 import { enableLiveSync } from "./options/live-sync";
 import { addPipButton } from "./options/pip";
 import { addRecordButton } from "./options/record";
@@ -59,6 +60,7 @@ class Content {
     addPipButton(this.settings.addPip);
     enableLiveSync(this.settings.enableLiveSync);
     hideNickname(this.settings.hideNickname);
+    hideTopNavigation(this.settings.hideTopNavigation);
   }
 }
 
