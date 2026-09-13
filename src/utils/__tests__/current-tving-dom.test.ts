@@ -39,6 +39,7 @@ describe("현재 TVING DOM 호환성", () => {
   });
 
   afterEach(() => {
+    hideNickname(false);
     disposeLiveSync();
     vi.clearAllTimers();
     vi.useRealTimers();
@@ -60,16 +61,52 @@ describe("현재 TVING DOM 호환성", () => {
     expect(
       document.getElementById("kbo-plus-hide-nickname-style"),
     ).not.toBeNull();
-    expect(document.querySelectorAll(".kbo-plus-unknown-badge")).toHaveLength(0);
+    expect(
+      document.querySelectorAll(".kbo-plus-unknown-badge"),
+    ).toHaveLength(1);
     expect(
       document.querySelector(
         '[data-case="with-team"] .kbo-plus-unknown-badge',
       ),
     ).toBeNull();
+    expect(
+      document.querySelector(
+        '[data-case="without-team"] .kbo-plus-unknown-badge',
+      )?.textContent,
+    ).toBe("?");
 
     expect(
       document.querySelector('[data-case="with-team"] img[src*="/badge/kbo/"]'),
     ).not.toBeNull();
+  });
+
+  it("새 채팅의 팀 없음 배지를 추가하고 팀 배지가 로드되면 제거한다", async () => {
+    hideNickname(true);
+    const message = document.createElement("div");
+    message.className = "group/message";
+    message.innerHTML =
+      '<span class="align-middle text-gray-600">new nickname</span>';
+    document.body.appendChild(message);
+
+    await vi.waitFor(() => {
+      expect(message.querySelector(".kbo-plus-unknown-badge")).not.toBeNull();
+    });
+
+    const teamBadge = document.createElement("img");
+    teamBadge.src = "https://image.tving.com/ntgs/badge/kbo/LG.webp";
+    message.prepend(teamBadge);
+
+    await vi.waitFor(() => {
+      expect(message.querySelector(".kbo-plus-unknown-badge")).toBeNull();
+    });
+
+    teamBadge.remove();
+    await vi.waitFor(() => {
+      expect(message.querySelector(".kbo-plus-unknown-badge")).not.toBeNull();
+    });
+
+    hideNickname(false);
+    expect(message.querySelector(".kbo-plus-unknown-badge")).toBeNull();
   });
 
   it("현행 채팅 입력창에 라이브 동기화 버튼을 추가한다", async () => {
