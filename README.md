@@ -16,6 +16,7 @@ Tving에서 편한 KBO 시청을 위한 익스텐션입니다.
 
 ## 스크린샷
 <img width="329" height="462" alt="image" src="https://github.com/user-attachments/assets/027841a2-816d-4564-a59e-4796bc4dadc1" />
+<img width="2032" height="1162" alt="스크린샷 2026-09-12 19 33 29" src="https://github.com/user-attachments/assets/dfac879b-cc0d-4db0-afbe-f13acea639e6" />
 
 
 ## 기술 스택
